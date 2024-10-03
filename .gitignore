@@ -1,0 +1,4 @@
+data/OSMI/
+data/RPLAN/
+data/*.xlsx
+output/
