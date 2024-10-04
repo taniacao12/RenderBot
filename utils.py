@@ -5,55 +5,68 @@ from scipy import stats, ndimage
 from door import Door
 from room import Room
 
+color = {
+    (245, 245, 245): 0,  # external area
+    ( 50,  50,  50): 1,  # exterior wall
+    (100, 100, 100): 2,  # front door
+    (150, 150, 150): 3,  # interior wall
+    (200, 200, 200): 4,  # interior door
+    (255,  69,  69): 5,  # kitchen
+    (255, 165,   0): 6,  # bathroom
+    (255, 255,   0): 7,  # dining room
+    (  0,   0, 128): 8,  # master room
+    ( 65, 105, 225): 9,  # child room
+    (  0,   0, 205): 10, # study room
+    (135, 206, 235): 11, # second room
+    (173, 216, 230): 12, # guest room
+    (  0, 128,   0): 13, # living room
+    (  0, 128, 128): 14, # balcony
+    (128,   0, 128): 15, # entrance
+    (255, 182, 193): 16, # storage
+    (139,  69,  19): 17  # wall-in
+}
+
 oppositeDir = {
     'I': 'O', 'O': 'I', 'N': 'S', 'S': 'N', 'E': 'W', 'W': 'E',
     'NE': 'SW', 'NW': 'SE', 'SE': 'NW', 'SW': 'NE'
 }
 
-programs = {
-    13: 0, 14: 1, 15: 2, 16: 3, 17: 4, 2: 5, 3: 6, 4: 7, 1: 8,
-    5: 9, 6: 10, 7: 11, 8: 12, 0: 13, 9: 14, 10: 15, 11: 16, 12: 17
-}
-
-def getMask (array, criteria) -> np.array:
+def getMask (array: np.array, criteria: int) -> np.array:
     mask = array == criteria
     region = measure.regionprops(mask.astype(int))[0]
     return np.array(region.bbox)
 
-def getChannels (image) -> np.array:
+def getData (image: np.array) -> tuple[np.array, np.array]:
     """
-    gets the plan's mask from all 4 image channel
+    dets the plan's image channgels
     """
-    c0 = image[..., 0] # boundary
-    c1 = image[..., 1] # program
-    c2 = image[..., 2] # instance
-    c3 = image[..., 3] # inside
-    y0, x0, y1, x1 = getMask(c0, 127)
-    return c0[y0:y1, x0:x1], c1[y0:y1, x0:x1], c2[y0:y1, x0:x1], c3[y0:y1, x0:x1]
+    colors = image[..., :3]
+    program = np.array([[color[tuple(col)] for col in row] for row in colors], dtype=np.uint8)
+    rooms  = np.array([[255 - col for col in row] for row in image[..., 3]], dtype=np.uint8)
+    return program, rooms
 
-def getFrontDoor (boundary, instance, rooms) -> Door:
+def getFrontDoor (c0: np.array, c1: np.array, rooms: list[Room]) -> Door:
     """
     gets the front door's mask
     """
-    y0, x0, y1, x1 = getMask(boundary, 255)
+    y0, x0, y1, x1 = getMask(c0, 2)
     door = Door(y0, y1, x0, x1, 0, True)
-    id = nbrs(instance, door)
+    id = nbrs(c1, door)
     room = [room for room in rooms if room.getID() == id[0]][0]
     door.addRoom(room)
     return door
 
-def getInteriorDoors (program) -> list:
+def getInteriorDoors (c0: np.array) -> list[Door]:
     """
     gets the interior door's masks
-    return: list of interior doors
+    return: list of interior Door objects
     """
-    mask = (program == 17).astype(np.uint8)
+    mask = (c0 == 4).astype(np.uint8)
     distance = ndimage.morphology.distance_transform_cdt(mask)
     local_maxi = (distance > 1).astype(np.uint8)
     corner_measurement = feature.corner_harris(local_maxi)
     local_maxi[corner_measurement > 0] = 0
     markers = measure.label(local_maxi)
-
     labels = segmentation.watershed(-distance, markers, mask=mask, connectivity=8)
     regions = measure.regionprops(labels)
 
@@ -64,13 +77,13 @@ def getInteriorDoors (program) -> list:
         interiorDoors.append(door)
     return interiorDoors
 
-def collides (bbox1, bbox2, th = 0) -> bool:
+def collides (bbox1: tuple[int, int, int, int], bbox2: tuple[int, int, int, int], th: int = 0) -> bool:
     """
-    determines whether or not two boxes collide with each other
+    determine if two bounding boxes collide
     :param bbox1: bounds of box 1 (y0, y1, x0, x1)
     :param bbox2: bounds of box 2 (y0, y1, x0, x1)
     :param th: optional margin to add to the boxes (default 0)
-    :return: True/False depending if boxes collide
+    :return: True if boxes collide, False otherwise
     """
     return not(
         (bbox1[0] - th > bbox2[1]) or
@@ -79,7 +92,7 @@ def collides (bbox1, bbox2, th = 0) -> bool:
         (bbox1[3] + th < bbox2[2])
     )
 
-def pointBoxRelation (coor, box) -> str:
+def pointBoxRelation (coor: tuple[int, int], box: tuple[int, int, int, int]) -> str:
     """
     finds the relation of the coor to the box
      NW  N  NE
@@ -111,7 +124,7 @@ def pointBoxRelation (coor, box) -> str:
         return 'SE'
     else: return None
 
-def doorRoomRelation (door, box) -> str:
+def doorRoomRelation (door: Door, box: Room) -> str:
     """
     finds the relation of the door to the box
         NW N NE
@@ -143,37 +156,37 @@ def doorRoomRelation (door, box) -> str:
         else: return 'ES'
     else: return None
 
-def nbrs (instance, door):
+def nbrs (c1: np.array, door: Door) -> list[int]:
     y0, y1, x0, x1 = door.getBounds()
     values = set()
     if door.getLength() > door.getWidth():
         for y in range(y0, y1):
-            values.add(instance[y][x0 - 1])
-            values.add(instance[y][x1 + 1])
+            values.add(c1[y][x0 - 1])
+            values.add(c1[y][x1 + 1])
     else:
         for x in range(x0, x1):
-            values.add(instance[y0 - 1][x])
-            values.add(instance[y1 + 1][x])
-    return [value for value in values if value != 0]
+            values.add(c1[y0 - 1][x])
+            values.add(c1[y1 + 1][x])
+    return [int(value) for value in values if value != 0]
 
-def getRooms (program, instance, doors) -> list:
+def getRooms (c0: np.array, c1: np.array, doors: list[Door]) -> list[Room]:
     """
     gets the rooms' masks and attributes
     return: list of rooms
     """
     rooms = []
-    regions = measure.regionprops(instance)
+    regions = measure.regionprops(c1)
     for region in regions:
-        value = stats.mode(program[region.coords[:, 0],
+        value = stats.mode(c0[region.coords[:, 0],
                                 region.coords[:, 1]],
                                 axis=None,
                                 keepdims=True)[0][0]
-        id = stats.mode(instance[region.coords[:, 0],
+        id = stats.mode(c1[region.coords[:, 0],
                                 region.coords[:, 1]],
                                 axis=None,
                                 keepdims=True)[0][0]
         y0, x0, y1, x1 = np.array(region.bbox)
-        rooms.append(Room(y0, y1, x0, x1, id, programs[value]))
+        rooms.append(Room(y0, y1, x0, x1, id, value))
     
     # find relations between rooms
     for u in range(len(rooms)):
@@ -194,7 +207,7 @@ def getRooms (program, instance, doors) -> list:
 
     # find relations between doors and rooms
     for door in doors:
-        id = nbrs(instance, door)
+        id = nbrs(c1, door)
         room1 = [room for room in rooms if room.getID() == id[0]][0]
         room2 = [room for room in rooms if room.getID() == id[1]][0]
         room1.addDoor(door, doorRoomRelation(door, room2), room2)

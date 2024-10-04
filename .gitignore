@@ -1,4 +1,4 @@
-data/OSMI/
-data/RPLAN/
-data/*.xlsx
+*pyc
+data/
 output/
+process.py

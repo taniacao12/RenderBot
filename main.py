@@ -1,8 +1,11 @@
-import os, random
+import os, re, random, json
 import imageio.v2 as imageio
 
 import utils
 from plan import Plan
+
+def natural_sort_key(s):
+    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
 def output(fileName, text):
     with open('output/' + fileName, 'w') as file:
@@ -13,54 +16,50 @@ def printChannel (type, fileName, channel):
     text = ""
     for row in channel:
         for col in row:
-            if type == 2:
-                if col == 13: text += ' ' # external area
-                elif col == 14: text += '.' # exterior wall
-                elif col == 15: text += '*' # front door
-                elif col == 16: text += '.' # interior walls
-                elif col == 17: text += '~' # interior doors
+            if col == 0: text += ' ' # external area
+            elif type == 1:
+                if col == 1: text += '.' # exterior wall
+                elif col == 2: text += '*' # front door
+                elif col == 3: text += '.' # interior walls
+                elif col == 4: text += '~' # interior doors
                 else: text += alpha[col - 1]
-            else:
-                if col == 0: text += ' ' # external area
-                elif type == 1:
-                    if col == 127: text += '.' # exterior wall
-                    elif col == 255: text += '*' # front door
-                    else: text += alpha[col - 1]
-                elif type == 3: text += str(col) # rooms
-                elif type == 4: text += '*' # interior area
+            elif type == 2: text += str(col)
         text += '\n'
     output(fileName, text)
 
-def printChannels (c0, c1, c2):
-    printChannel(1, 'boundary.txt', c0)
-    printChannel(2, 'program.txt', c1)
-    printChannel(3, 'instance.txt', c2)
-    printChannel(4, 'inside.txt', c2)
+def printChannels (c0, c1):
+    printChannel(1, 'program.txt', c0)
+    printChannel(2, 'rooms.txt', c1)
 
 def rplan ():
-    # select file from dataset
-    # choice = 1
-    directory = 'data/RPLAN'
-    files = os.listdir(directory)
     while True:
-        choice = int(input("Select a file for simulation:\nPick a number from 1 to {} or 0 for random choice => ".format(len(files))).strip())
-        if 0 <= choice <= len(files): break
-    if choice == 0:
-        imagePath = directory + '/' + random.choice(files)
-    else: imagePath = directory + '/' + files[choice - 1]
-    print("Reading {}".format(imagePath))
+        # select file from dataset
+        directory = 'data/dataset'
+        files = sorted(os.listdir(directory), key=natural_sort_key)
+        while True:
+            choice = int(input("Select a file for simulation:\nPick a number from 1 to {}, 0 for random choice, or -1 to exit program\n=> ".format(len(files))).strip())
+            if -1 <= choice <= len(files): break
+        if choice == -1: break
+        elif choice == 0: imageName = random.choice(files)
+        else: imageName = files[choice - 1]
+        imagePath = directory + '/' + imageName
+        print("Reading {}".format(imagePath))
 
-    # read image and gather its data
-    image = imageio.imread(imagePath)
-    # print(image.shape) # print out image metadata (size and number of channels)
-    c0, c1, c2, c3 = utils.getChannels(image)
-    # printChannels(c0, c1, c2, c3)
+        # read image and gather its data
+        image = imageio.imread(imagePath)
+        height, width, channels = image.shape
+        # print(height, width, channels)
+        c0, c1 = utils.getData(image)
+        # printChannels(c0, c1)
 
-    interiorDoors = utils.getInteriorDoors(c1)
-    rooms = utils.getRooms(c1, c2, interiorDoors)
-    frontDoor = utils.getFrontDoor(c0, c2, rooms)
-    plan = Plan(c1, frontDoor, interiorDoors, rooms)
-    output('output.txt', plan.output())
+        interiorDoors = utils.getInteriorDoors(c0)
+        rooms = utils.getRooms(c0, c1, interiorDoors)
+        frontDoor = utils.getFrontDoor(c0, c1, rooms)
+        plan = Plan(imagePath, height, width, frontDoor, interiorDoors, rooms)
+
+        output(imageName.split('.')[0] + '.txt', plan.output())
+        with open('output/{}.json'.format(imageName.split('.')[0]), 'w') as file:
+            json.dump(plan, file, default=lambda o: o.to_dict(), indent=4)
 
 if __name__ == '__main__':
     rplan()

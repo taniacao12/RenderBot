@@ -1,11 +1,30 @@
 class Plan:
-    def __init__ (self, plan, frontDoor, interiorDoors, rooms):
-        self.plan = plan
+    def __init__ (self, imagePath, height, width, frontDoor, interiorDoors, rooms):
+        self.imagePath = imagePath
+        self.height = height
+        self.width = width
+        # self.program = program
         self.frontDoor = frontDoor
         self.interiorDoors = interiorDoors
         self.rooms = rooms
-        
-    def output (self):
+
+    def to_dict (self):
+        interiorDoors = {}
+        rooms = {}
+        for door in self.interiorDoors:
+            interiorDoors[door.getID()] = door.to_dict()
+        for room in self.rooms:
+            rooms[room.getID()] = room.to_dict()
+        return {
+            "imagePath": self.imagePath,
+            "height": self.height,
+            "width": self.width,
+            "frontDoor": {self.frontDoor.getID(): self.frontDoor.to_dict()},
+            "interiorDoors": interiorDoors,
+            "rooms": rooms
+        }
+
+    def output (self) -> str:
         ret = ""
         area = 0
         for room in self.rooms:
