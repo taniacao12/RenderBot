@@ -1,65 +1,51 @@
-import os, re, random, json
-import imageio.v2 as imageio
+import os, time
+import numpy as np
 
-import utils
+from utils.file_utils import *
+from utils.data_utils import getBoundary, getWalls, getDoors, getRooms
 from plan import Plan
 
-def natural_sort_key(s):
-    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
+def run (name, imagePath) -> None:
+    imagePath = directory + '/' + imagePath
+    print("Reading {}".format(imagePath))
+    height, width, c1, c2 = readImage(imagePath)
 
-def output(fileName, text):
-    with open('output/' + fileName, 'w') as file:
-        file.write(text)
+    print("Printing output files [{}]...".format(name))
+    printImage(name, height, width, c1, c2)
+    printPlan(1, "program.txt", c1)
+    # printPlan(2, "instance.txt", c2)
 
-def printChannel (type, fileName, channel):
-    alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    text = ""
-    for row in channel:
-        for col in row:
-            if col == 0: text += ' ' # external area
-            elif type == 1:
-                if col == 1: text += '.' # exterior wall
-                elif col == 2: text += '*' # front door
-                elif col == 3: text += '.' # interior walls
-                elif col == 4: text += '~' # interior doors
-                else: text += alpha[col - 1]
-            elif type == 2: text += str(col)
-        text += '\n'
-    output(fileName, text)
+    boundary = getBoundary(height, width, c1)
+    # printPlan(2, "walls.txt", boundary)
+    printPlan(2, "boundary/{}.txt".format(name), boundary)
 
-def printChannels (c0, c1):
-    printChannel(1, 'program.txt', c0)
-    printChannel(2, 'rooms.txt', c1)
+    walls = getWalls(height, width, np.copy(boundary))
+    printShapes("walls/{}.txt".format(name), walls)
 
-def rplan ():
-    while True:
-        # select file from dataset
-        directory = 'data/dataset'
-        files = sorted(os.listdir(directory), key=natural_sort_key)
-        while True:
-            choice = int(input("Select a file for simulation:\nPick a number from 1 to {}, 0 for random choice, or -1 to exit program\n=> ".format(len(files))).strip())
-            if -1 <= choice <= len(files): break
-        if choice == -1: break
-        elif choice == 0: imageName = random.choice(files)
-        else: imageName = files[choice - 1]
-        imagePath = directory + '/' + imageName
-        print("Reading {}".format(imagePath))
+    doors = getDoors(height, width, c1, boundary)
+    printShapes("doors/{}.txt".format(name), doors)
 
-        # read image and gather its data
-        image = imageio.imread(imagePath)
-        height, width, channels = image.shape
-        # print(height, width, channels)
-        c0, c1 = utils.getData(image)
-        # printChannels(c0, c1)
+    rooms = getRooms(height, width, c1, boundary)
+    printShapes("rooms/{}.txt".format(name), rooms)
 
-        interiorDoors = utils.getInteriorDoors(c0)
-        rooms = utils.getRooms(c0, c1, interiorDoors)
-        frontDoor = utils.getFrontDoor(c0, c1, rooms)
-        plan = Plan(imagePath, height, width, frontDoor, interiorDoors, rooms)
-
-        output(imageName.split('.')[0] + '.txt', plan.output())
-        with open('output/{}.json'.format(imageName.split('.')[0]), 'w') as file:
-            json.dump(plan, file, default=lambda o: o.to_dict(), indent=4)
-
+    # plan = Plan(imagePath, height, width, walls, doors, rooms)
+    # output('Text/{}.txt'.format(choice), plan.output())
+    # printJSON(name, plan)
+        
 if __name__ == '__main__':
-    rplan()
+    start = time.time()
+
+    directory = 'data/RPLAN'
+    files = sorted(os.listdir(directory), key = natural_sort_key)
+    command = input("Enter your command: ").strip().lower()
+    while command != "all" and not command.isdigit():
+        command = input("Enter your command: ").strip().lower()
+    if command == "all":
+        fileBatch = files[0:101]
+        for i in range(len(fileBatch)):
+            run(i, fileBatch[i])
+    elif command.isdigit():
+        run(int(command), files[int(command)])
+
+    end = time.time()
+    print("Runtime: {}".format(end - start))
