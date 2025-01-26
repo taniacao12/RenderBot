@@ -1,90 +1,106 @@
 import numpy as np
-from skimage import measure, feature, segmentation
-from scipy import ndimage
 
-from legend import nbr, oppositeDir
+from legend import nbr
 from utils.file_utils import printPlan
-from door import Door
-from room import Room
-from window import Window
 
-def getX (c1: np.array, row: int, col: int):
+def getX (program: np.array, row: int, col: int):
+    '''
+    find width of continuous wall
+    '''
     count = 1
-    for c in range(col + 1, len(c1[row])):
-        if c1[row][c] in [1, 2, 3, 4]: count += 1
+    for c in range(col + 1, len(program[row])):
+        if program[row][c] in [1, 2, 3, 4]: count += 1
         else: break
     for c in range(col - 1, -1, -1):
-        if c1[row][c] in [1, 2, 3, 4]: count += 1
+        if program[row][c] in [1, 2, 3, 4]: count += 1
         else: break
     return count
 
-def getY (c1: np.array, row: int, col: int):
+def getY (program: np.array, row: int, col: int):
+    '''
+    find length of continuous wall
+    '''
     count = 1
-    for r in range(row + 1, len(c1)):
-        if c1[r][col] in [1, 2, 3, 4]: count += 1
+    for r in range(row + 1, len(program)):
+        if program[r][col] in [1, 2, 3, 4]: count += 1
         else: break
     for r in range(row - 1, -1, -1):
-        if c1[r][col] in [1, 2, 3, 4]: count += 1
+        if program[r][col] in [1, 2, 3, 4]: count += 1
         else: break
     return count
 
-def getBoundary (rows: int, cols: int, c1: np.array):
-    temp = np.zeros((rows, cols), dtype=np.uint8)
+def getPlans (rows: int, cols: int, program: np.array):
+    '''
+    create a new set of plans where p1 denotes orientations and p2 displays boundaries:
+    '''
+    p1 = np.zeros((rows, cols), dtype = np.uint8)
+    p2 = np.zeros((rows, cols), dtype = np.uint8)
     for row in range(rows):
         for col in range(cols):
-            if c1[row][col] in [1, 2, 3, 4]:
-                x = getX(c1, row, col)
-                y = getY(c1, row, col)
-                if x > y: temp[row][col] = 1
-                elif x < y: temp[row][col] = 2
-                else: temp[row][col] = 3
-    # printPlan(2, "walls.txt", temp)
+            if program[row][col] in [1, 2, 3, 4]:
+                x = getX(program, row, col)
+                y = getY(program, row, col)
+                if x > y: p1[row][col] = 1 
+                elif x < y: p1[row][col] = 2
+                else: p1[row][col] = 3
+                if program[row][col] % 2: p2[row][col] = 1
+                else: p2[row][col] = 2
+            elif program[row][col] >= 5: p2[row][col] = 3
+    # printPlan(2, "plan.txt", p1)
 
+    # convert all interconnecting parts of p1 into corners
     row = 0
     while row < rows:
         col = 0
         while col < cols:
-            if col > 1 and temp[row][col] == 2 and temp[row][col - 1] in [1, 3]:
-                temp[row][col] = 3
-                while col < cols - 1 and temp[row][col + 1] == 2:
-                    temp[row][col + 1] = 3
+            if col > 1 and p1[row][col] == 2 and p1[row][col - 1] in [1, 3]:
+                p1[row][col] = 3
+                while col < cols - 1 and p1[row][col + 1] == 2:
+                    p1[row][col + 1] = 3
                     col += 1
-            elif col < cols - 1 and temp[row][col] == 2 and temp[row][col + 1] in [1, 3]:
-                temp[row][col] = 3
+            elif col < cols - 1 and p1[row][col] == 2 and p1[row][col + 1] in [1, 3]:
+                p1[row][col] = 3
                 c = col - 1
-                while c > -1 and temp[row][c] == 2:
-                    temp[row][c] = 3
+                while c > -1 and p1[row][c] == 2:
+                    p1[row][c] = 3
                     c -= 1
-            elif row > 1 and temp[row][col] == 1 and temp[row - 1][col] in [2, 3]:
-                temp[row][col] = 3
+            elif row > 1 and p1[row][col] == 1 and p1[row - 1][col] in [2, 3]:
+                p1[row][col] = 3
                 r = row
-                while r < rows - 1 and temp[r + 1][col] == 1:
-                    temp[r + 1][col] = 3
+                while r < rows - 1 and p1[r + 1][col] == 1:
+                    p1[r + 1][col] = 3
                     r += 1
-            elif row < rows - 1 and temp[row][col] == 1 and temp[row + 1][col] in [2, 3]:
-                temp[row][col] = 3
+            elif row < rows - 1 and p1[row][col] == 1 and p1[row + 1][col] in [2, 3]:
+                p1[row][col] = 3
                 r = row - 1
-                while r > -1 and temp[r][col] == 1:
-                    temp[r][col] = 3
+                while r > -1 and p1[r][col] == 1:
+                    p1[r][col] = 3
                     r -= 1
             col += 1
         row += 1
-    return temp
+    return p1, p2
 
-def getNextOptions (boundary: np.array, row: int, col: int, num: int):
+def getNextOptions (grid: np.array, row: int, col: int, num: int):
+    '''
+    return list of all possible moves
+    '''
     ret = []
-    if row + nbr['N'][0] >= 0 and boundary[row + nbr['N'][0]][col + nbr['N'][1]] == num:
+    if row + nbr['N'][0] >= 0 and grid[row + nbr['N'][0]][col + nbr['N'][1]] == num:
         ret.append('N')
-    if col + nbr['E'][1] < len(boundary[row]) and boundary[row + nbr['E'][0]][col + nbr['E'][1]] == num:
+    if col + nbr['E'][1] < len(grid[row]) and grid[row + nbr['E'][0]][col + nbr['E'][1]] == num:
         ret.append('E')
-    if row + nbr['S'][0] < len(boundary) and boundary[row + nbr['S'][0]][col + nbr['S'][1]] == num:
+    if row + nbr['S'][0] < len(grid) and grid[row + nbr['S'][0]][col + nbr['S'][1]] == num:
         ret.append('S')
-    if col + nbr['W'][1] >= 0 and boundary[row + nbr['W'][0]][col + nbr['W'][1]] == num:
+    if col + nbr['W'][1] >= 0 and grid[row + nbr['W'][0]][col + nbr['W'][1]] == num:
         ret.append('W')
     return ret
 
-def getBorderNext (boundary: np.array, row: int, col: int, dir: str, num: int):
-    options = getNextOptions(boundary, row, col, num)
+def getBorderNext (grid: np.array, row: int, col: int, dir: str, num: int):
+    '''
+    get next move such that you move through the outline of the shape until
+    there are no more moves to make
+    '''
+    options = getNextOptions(grid, row, col, num)
     N = [row + nbr['N'][0], col + nbr['N'][1]]
     S = [row + nbr['S'][0], col + nbr['S'][1]]
     E = [row + nbr['E'][0], col + nbr['E'][1]]
@@ -110,8 +126,12 @@ def getBorderNext (boundary: np.array, row: int, col: int, dir: str, num: int):
         elif 'E' in options: return E[0], E[1], 'E', True
         return row, col, 'S', True
 
-def getSnakeNext (boundary: np.array, row: int, col: int, dir: str, num: int, temp: list):
-    options = getNextOptions(boundary, row, col, num)
+def getSnakeNext (grid: np.array, row: int, col: int, dir: str, num: int, temp: list):
+    '''
+    get next move such that you move through all coordinates outlining and
+    within the shape until there are no more moves to make
+    '''
+    options = getNextOptions(grid, row, col, num)
     if not options: return row, col, 'Done', temp
     N = [row + nbr['N'][0], col + nbr['N'][1]]
     S = [row + nbr['S'][0], col + nbr['S'][1]]
@@ -158,92 +178,68 @@ def getSnakeNext (boundary: np.array, row: int, col: int, dir: str, num: int, te
             elif S not in temp: temp.append(S)
         return retR, retC, retD, temp
 
-def getShape (boundary: np.array, row: int, col: int):
-    # get points
-    num = boundary[row][col]
+def getShape (grid: np.array, row: int, col: int):
+    '''
+    get coordinates of corners in shape that starts with the given coordinate
+    '''
+    # get coordinates
+    num = grid[row][col]
     shape, dir = [[row, col]], 'E'
-    row, col, dir, turn = getBorderNext(boundary, row, col, dir, num)
-    while [row, col] != shape[0] and boundary[row, col] == num:
-        r, c, d, turn = getBorderNext(boundary, row, col, dir, num)
+    row, col, dir, turn = getBorderNext(grid, row, col, dir, num)
+    while [row, col] != shape[0] and grid[row, col] == num:
+        r, c, d, turn = getBorderNext(grid, row, col, dir, num)
         if turn: shape.append([row, col])
         row, col, dir = r, c, d
     if [row, col] == shape[0]: shape.append([row, col])
 
-    # remove shape from boundary
+    # remove shape from grid
     row, col, dir, temp = shape[0][0], shape[0][1], 'E', []
-    while boundary[row][col] == num:
-        boundary[row][col] = 0
+    while grid[row][col] == num:
+        grid[row][col] = 0
         # if row > 87 and col > 37:
-        #     printPlan(2, "testing.txt", boundary)
+        #     printPlan(4, "test.txt", grid)
         #     time.sleep(.2)
-        row, col, dir, temp = getSnakeNext(boundary, row, col, dir, num, temp)
+        row, col, dir, temp = getSnakeNext(grid, row, col, dir, num, temp)
         if dir == 'Done':
             if temp: row, col, dir = temp[0][0], temp[0][1], 'E'
             else: break
         if [row, col] in temp: temp.remove([row, col])
+    return grid, shape, num
 
-    if num == 4: shape.insert(0, 3)
-    else: shape.insert(0, num)
-    return boundary, shape
-
-def getWalls (rows: int, cols: int, boundary: np.array):
-    walls = []
+def getComponent (info: dict, name: str, rows: int, cols: int, grid: np.array, p3: np.array):
+    '''
+    find and add shape information to info based on component type
+    '''
     for row in range(rows):
         for col in range(cols):
-            if boundary[row][col]:
-                boundary, shape = getShape(boundary, row, col)
-                # print(shape)
-                walls.append(shape)
-    return walls
+            if grid[row][col]:
+                grid, shape, orientation = getShape(grid, row, col) # get shape coordinates
+                if name == 'Rooms': location = 2
+                else: location = p3[row][col]
+                # print(orientation in info[location][name], location, name, orientation, shape)
+                if orientation in info[location][name]: info[location][name][orientation].append(shape)
+                else: info[location][name][int(orientation)] = [shape]
+    return info
 
-def getDoors (rows: int, cols: int, c1: np.array, boundary: np.array):
-    temp = np.zeros((rows, cols), dtype=np.uint8)
+def getInfo (rows: int, cols: int, p1: np.array, p2: np.array, p3: np.array):
+    '''
+    find and return wall, door, and room information
+    '''
+    info = {
+        1: {'Walls': {}, 'Doors': {}},
+        2: {'Walls': {}, 'Doors': {}, 'Rooms': {}}
+    }
+    doors = np.zeros((rows, cols), dtype = np.uint8)
+    rooms = np.zeros((rows, cols), dtype = np.uint8)
     for row in range(rows):
         for col in range(cols):
-            if c1[row][col] in [3, 4] and boundary[row][col] != 3:
-                temp[row][col] = c1[row][col] - 2
-
-    doors = []
-    for row in range(rows):
-        for col in range(cols):
-            if temp[row][col]:
-                temp, shape = getShape(temp, row, col)
-                shape.insert(1, boundary[row][col])
-                doors.append(shape)
-    return doors
-
-def getRooms (rows: int, cols: int, c1: np.array, boundary: np.array):
-    temp = np.zeros((rows, cols), dtype=np.uint8)
-    for row in range(rows):
-        for col in range(cols):
-            if c1[row][col] and boundary[row][col] == 0:
-                temp[row][col] = c1[row][col]
-    # printPlan(1, "testing.txt", temp)
-
-    rooms = []
-    for row in range(rows):
-        for col in range(cols):
-            if temp[row][col]:
-                temp, shape = getShape(temp, row, col)
-                rooms.append(shape)
-    return rooms
-
-# def getRegion (array: np.array, criteria: int, type: bool) -> np.array:
-#     if type: mask = array == criteria
-#     else: mask = array != criteria
-#     return measure.regionprops(mask.astype(np.uint8))[0]
-
-# def getRegions (array: np.array, criteria: int, type: bool) -> list:
-#     if type: mask = (array == criteria).astype(np.uint8)
-#     else: mask = (array != criteria).astype(np.uint8)
-#     distance = ndimage.morphology.distance_transform_cdt(mask)
-#     local_maxi = (distance > 1).astype(np.uint8)
-#     corner_measurement = feature.corner_harris(local_maxi)
-#     local_maxi[corner_measurement > 0] = 0
-#     markers = measure.label(local_maxi)
-#     labels = segmentation.watershed(-distance, markers, mask=mask, connectivity=8)
-#     regions = measure.regionprops(labels)
-#     return regions
+            if p1[row][col] in [3, 4] and p2[row][col] != 3:
+                doors[row][col] = p2[row][col]
+            if p3[row][col] == 3: rooms[row][col] = p1[row][col]
+    getComponent(info, 'Walls', rows, cols, np.copy(p2), p3)
+    getComponent(info, 'Doors', rows, cols, doors, p3)
+    getComponent(info, 'Rooms', rows, cols, rooms, p3)
+    return info
 
 # def collides (bbox1: tuple[int, int, int, int], bbox2: tuple[int, int, int, int], th: int = 0) -> bool:
 #     """
@@ -283,31 +279,6 @@ def getRooms (rows: int, cols: int, c1: np.array, boundary: np.array):
 #     elif (x1 < x and y1 <= y) or (x == x1 and y == y1): return 'SE'
 #     else: return None
 
-def getOldRooms (c1: np.array, c2: np.array) -> dict[Room]:
-    rooms = {}
-    for region in measure.regionprops(c2):
-        rooms[int(region.label)] = Room(region, c1)
-    
-    # find relations between rooms
-    keys = list(rooms.keys())
-    for a in range(len(keys)):
-        for b in range(a + 1, len(keys)):
-            # check if two rooms are connected
-            A, B = keys[a], keys[b]
-            if not collides(rooms[A].getBounds(), rooms[B].getBounds(), 9):
-                continue # rooms are not connected
-            # if they are, check the spatial relation between them
-            ay0, ay1, ax0, ax1 = rooms[A].getBounds()
-            by0, by1, bx0, bx1 = rooms[B].getBounds()
-            if ax0 < bx0 and ax1 > bx1 and ay0 < by0 and ay1 > by1:
-                relation = 'O' # room a surrounds room b
-            elif ax0 >= bx0 and ax1 <= bx1 and ay0 >= by0 and ay1 <= by1:
-                relation = 'I' # room a is inside room b
-            else: relation = pointBoxRelation(rooms[A].getCentroid(), rooms[B].getBounds())
-            rooms[A].addRelation(oppositeDir[relation], rooms[B])
-            rooms[B].addRelation(relation, rooms[A])
-    return rooms
-
 # def roomRelation (door: Door, box: Room) -> str:
 #     """
 #     finds the relation of the door to the box
@@ -339,81 +310,3 @@ def getOldRooms (c1: np.array, c2: np.array) -> dict[Room]:
 #         if x < xc: return 'WS'
 #         else: return 'ES'
 #     else: return None
-
-# def getDoor (id: int, region: np.array, egress, c1: np.array, c2: np.array, rooms: dict[Room]) -> Door:
-#     y0, x0, y1, x1 = np.array(region.bbox)
-#     centerH = int((x0 + x1 - 1) / 2)
-#     centerV = int((y0 + y1 - 1) / 2)
-#     if egress: # fix
-#         if c1[y0 - 1][centerH] > 5 or c1[y1 + 1][centerH] > 5:
-#             orientation = 'H'
-#             r1 = c2[y0 - 1][centerH]
-#             r2 = c2[y1 + 1][centerH]
-#         elif c1[centerV][x0 - 1] > 5 or c1[centerV][x1 + 1] > 5:
-#             orientation = 'V'
-#             r1 = c2[centerV][x0 - 1]
-#             r2 = c2[centerV][x1 + 1]
-#     elif c1[y0 - 1][centerH] > 5 and c1[y1 + 1][centerH] > 5:
-#         orientation = 'H'
-#         r1 = c2[y0 - 1][centerH]
-#         r2 = c2[y1 + 1][centerH]
-#     elif c1[centerV][x0 - 1] > 5 and c1[centerV][x1 + 1] > 5:
-#         orientation = 'V'
-#         r1 = c2[centerV][x0 - 1]
-#         r2 = c2[centerV][x1 + 1]
-#     else: return None
-#     door = Door(id, region, orientation, egress)
-#     if r1 != 0:
-#         door.addRoom(r1)
-#         if egress:
-#             door.addRoom(0)
-#             rooms[r1].addDoor(door, 'I', 0)
-#     if r2 != 0:
-#         if egress:
-#             door.addRoom(0)
-#             rooms[r2].addDoor(door, 'I', 0)
-#         door.addRoom(r2)
-#     if r1 != 0 and r2 != 0:
-#         rooms[r1].addDoor(door, roomRelation(door, rooms[r2]), r2)
-#         rooms[r2].addDoor(door, roomRelation(door, rooms[r1]), r1)
-#     return door
-
-# def getDoors (c1: np.array, c2: np.array, rooms: dict[Room]) -> dict[Door]:
-#     doors = {}
-#     # egress door
-#     doors[len(doors) + 1] = getDoor(len(doors) + 1, getRegion(c1, 3, True), True, c1, c2, rooms)
-#     # interior doors
-#     for region in getRegions(c1, 5, True):
-#         door = getDoor(len(doors) + 1, region, False, c1, c2, rooms)
-#         if door: doors[len(doors) + 1] = door
-#     return doors
-
-# def getWindow (id: int, region: np.array, c1: np.array, c2: np.array, rooms: dict[Room]) -> Window:
-#     y0, x0, y1, x1 = np.array(region.bbox)
-#     centerH = int((x0 + x1 - 1) / 2)
-#     centerV = int((y0 + y1 - 1) / 2)
-#     if c1[y0 - 1][centerH] in range(1, 6) or c1[y1 + 1][centerH] in range(1, 6):
-#         orientation = 'V'
-#         r1 = c2[centerV][x0 - 1]
-#         r2 = c2[centerV][x1 + 1]
-#     else:
-#         orientation = 'H'
-#         r1 = c2[y0 - 1][centerH]
-#         r2 = c2[y1 + 1][centerH]
-#     window = Window(id, region, orientation)
-#     if r1 != 0:
-#         window.setRoom(r1)
-#         rooms[r1].addWindow(roomRelation(window, rooms[r1]), window)
-#     elif r2 != 0:
-#         window.setRoom(r2)
-#         rooms[r2].addWindow(roomRelation(window, rooms[r2]), window)
-#     if window.room == None: return None
-#     return window
-
-# def getWindows (c1: np.array, c2: np.array, rooms: dict[Room]) -> dict[Door]:
-    windows = {}
-    passer = False
-    for region in getRegions(c1, 2, True):
-        window = getWindow(len(windows) + 1, region, c1, c2, rooms)
-        if window: windows[len(windows) + 1] = window
-    return windows

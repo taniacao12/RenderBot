@@ -1,4 +1,5 @@
-scale = 1 / 4 # 4 pixels is equivalent to 1 foot
+# scaleFactor = 1 / 4 # 4 pixels is equivalent to 1 foot
+scaleFactor = 3 # 1 pixel is equivalent to 3 inches
 
 nbr = {
     'N': (-1,  0),
@@ -107,4 +108,15 @@ program_desc = {
     15: ["Child Room",      "Bedroom"],
     16: ["Second Room",     "Bedroom"],
     17: ["Guest Room",      "Bedroom"],
+}
+
+location = {
+    1: 'External',
+    2: 'Internal'
+}
+
+orientation = {
+    1: 'Horizontal',
+    2: 'Vertical',
+    3: 'Corner'
 }
