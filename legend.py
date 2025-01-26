@@ -112,7 +112,8 @@ program_desc = {
 
 location = {
     1: 'External',
-    2: 'Internal'
+    2: 'Internal',
+    3: 'Relation'
 }
 
 orientation = {

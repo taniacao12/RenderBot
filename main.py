@@ -10,14 +10,14 @@ def run (name, imagePath) -> None:
 
     orientations, boundary = getPlans(height, width, program)
     info = getInfo(height, width, program, orientations, boundary)
-    # for a in info:
-    #     print(a)
-    #     for b in info[a]:
-    #         print(' ', b)
-    #         for c in info[a][b]:
-    #             print('   ', c)
-    #             for d in info[a][b][c]:
-    #                 print('     ', d)
+    # for location in info:
+    #     print(location)
+    #     for component in info[location]:
+    #         print(' ', component)
+    #         for orientation in info[location][component]:
+    #             print('   ', orientation)
+    #             for shape in info[location][component][orientation]:
+    #                 print('     ', shape)
 
     print("Printing output files [{}]...".format(name))
     # printImage(name, height, width, program)

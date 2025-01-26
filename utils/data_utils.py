@@ -227,7 +227,8 @@ def getInfo (rows: int, cols: int, p1: np.array, p2: np.array, p3: np.array):
     '''
     info = {
         1: {'Walls': {}, 'Doors': {}},
-        2: {'Walls': {}, 'Doors': {}, 'Rooms': {}}
+        2: {'Walls': {}, 'Doors': {}, 'Rooms': {}},
+        3: {'RoomToDoor': {}, 'DoorToRoom': {}}
     }
     doors = np.zeros((rows, cols), dtype = np.uint8)
     rooms = np.zeros((rows, cols), dtype = np.uint8)
