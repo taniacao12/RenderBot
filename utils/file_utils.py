@@ -78,14 +78,14 @@ def printPlan (option: int, fileName: str, array: np.array) -> None:
         text += '\n'
     output(fileName, text)
 
-def scale (shape: list):
+def scaleFormat (shape: list):
     '''
-    scale shape based on scale factor
+    scale shape based on scale factor and format to [x, y] format
     '''
     temp = []
     for point in shape:
         newPoint = [coor * scaleFactor for coor in point]
-        temp.append(newPoint)
+        temp.append([newPoint[1], -newPoint[0]])
     return temp
 
 def rhinoCoorFormat (coors: list):
@@ -160,7 +160,7 @@ def rhinoCoorFormat (coors: list):
                 i += 1
         i += 1
     temp.append(temp[0])
-    return scale(temp)
+    return scaleFormat(temp)
 
 def rhinoFormat (info: dict):
     '''
@@ -174,11 +174,14 @@ def rhinoFormat (info: dict):
                     temp['Coordinates'] = rhinoCoorFormat(temp['Coordinates'])
     return info
 
-def printJSON (fileName: str, data: dict, option: str = None) -> None:
+def printJSON (fileName: str, data: dict, option: str = None, imagePath: str = None) -> None:
     """
     export data as JSON file with the given file name
     """
     with open('output/JSON/{}.json'.format(fileName), 'w') as file:
         if option == 'Rhino':
-            json.dump(rhinoFormat(data), file, indent = 4)
-        else: json.dump(data, file, indent = 4)
+            data = {
+                'Image Path': imagePath,
+                'Features': rhinoFormat(data)
+            }
+        json.dump(data, file, indent = 4)

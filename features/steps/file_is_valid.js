@@ -27,21 +27,30 @@ When('I read the file', function () {
 });
 
 Then('it should have at least 3 walls', function () {
-    const externalWalls = info.External.Walls;
-    const internalWalls = info.Internal.Walls;
-    const numWalls = Object.values(externalWalls).flat().length +
-                    Object.values(internalWalls).flat().length;
-    assert(numWalls >= 3, 'Less than three walls found in the file');
-    console.log(`File contains ${numWalls} walls.`);
+    const externalWalls = info.Features.External.Walls;
+    const internalWalls = info.Features.Internal.Walls;
+    let sum = 0;
+    for (let item in externalWalls) {
+        sum += Object.values(externalWalls[item]).flat().length;
+    } for (let item in internalWalls) {
+        sum += Object.values(internalWalls[item]).flat().length;
+    }
+    assert(sum >= 3, 'Less than three walls found in the file');
+    console.log(`File contains ${sum} walls.`);
 });
 
 Then('it should have at least 1 door', function () {
-    externalDoors = info.External.Doors;
-    const internalDoors = info.Internal.Doors;
-    numExDoors = Object.values(externalDoors).flat().length
-    const numDoors = numExDoors + Object.values(internalDoors).flat().length;
-    assert(numDoors > 0, 'No doors found in the file');
-    console.log(`File contains ${numDoors} doors.`);
+    externalDoors = info.Features.External.Doors;
+    const internalDoors = info.Features.Internal.Doors;
+    let sum = 0;
+    for (let item in externalDoors) {
+        numExDoors = Object.values(externalDoors[item]).flat().length;
+        sum += numExDoors;
+    } for (let item in internalDoors) {
+        sum += Object.values(internalDoors[item]).flat().length;
+    }
+    assert(sum > 0, 'No doors found in the file');
+    console.log(`File contains ${sum} doors.`);
 });
 
 Then('at least 1 door should be an exit', function () {
@@ -56,27 +65,28 @@ Then('I should say the file is valid', function () {
 Given('list of exits', function (callback) {
     callback();
     console.log("Checking exits.");
-    hExits = vExits = [];
+    hExits = vExits = {};
     if ('Horizontal' in externalDoors) {
         hExits = externalDoors.Horizontal;
-    };
-    if ('Vertical' in externalDoors) {
+    } if ('Vertical' in externalDoors) {
         vExits = externalDoors.Vertical;
-    };
+    }
 });
 
 Then('each should be between 34 to 48 inches', function () {
-    for (let i = 0; i < hExits.length; i++) {
-        let width = hExits[i][1][1] - hExits[i][0][1];
+    for (let item in hExits) {
+        let coors = hExits[item].Coordinates;
+        let width = Math.abs(coors[1][0] - coors[0][0]);
         assert(width >= 34, `Exit is ${width} inches long.`);
         assert(width <= 48, `Exit is ${width} inches long.`);
-        console.log(`Horizontal Exit ${i + 1}: ${width} inches wide`);
+        console.log(`Horizontal Exit ${item} is ${width} inches wide`);
     };
-    for (let i = 0; i < vExits.length; i++) {
-        let width = vExits[i][2][0] - vExits[i][1][0];
+    for (let item in vExits) {
+        let coors = vExits[item].Coordinates;
+        let width = Math.abs(coors[2][1] - coors[1][1]);
         assert(width >= 34, `Exit is ${width} inches long.`);
         assert(width <= 48, `Exit is ${width} inches long.`);
-        console.log(`Vertical Exit ${i + 1}: ${width} inches wide`);
+        console.log(`Vertical Exit ${item} is ${width} inches wide`);
     };
 });
 

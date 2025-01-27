@@ -16,7 +16,7 @@ def run (name, imagePath) -> None:
     printPlan(2, "orientations.txt", orientations)
     printPlan(3, "boundary.txt", boundary)
     # printJSON(name, info)
-    printJSON(name, info, 'Rhino')
+    printJSON(name, info, 'Rhino', imagePath)
         
 if __name__ == '__main__':
     start = time.time()
