@@ -10,7 +10,7 @@ import numpy as np
 import imageio.v2 as imageio
 from skimage import measure
 
-from legend import color_code, program_code, location, orientation, program_desc, scaleFactor
+from legend import color_code, program_code, program_desc, scaleFactor
 
 def natural_sort_key(s):
     """
@@ -59,7 +59,7 @@ def printPlan (option: int, fileName: str, array: np.array) -> None:
     text = ""
     for row in array:
         for col in row:
-            if col == 0: text += ' ' # external area
+            if col == 0 or col == '': text += ' ' # external area
             elif option == 1: # program
                 if col == 1: text += '.' # exterior wall
                 elif col == 2: text += ',' # interior wall
@@ -67,13 +67,13 @@ def printPlan (option: int, fileName: str, array: np.array) -> None:
                 elif col == 4: text += '~' # interior doors
                 else: text += alpha[col - 5] # rooms
             elif option == 2: # orientation
-                if col == 1: text += '-' # horizontal
-                elif col == 2: text += '|' # vertical
-                elif col == 3: text += '*' # corner
+                if col == 'Horizontal': text += '-' # horizontal
+                elif col == 'Vertical': text += '|' # vertical
+                elif col == 'Corner': text += '*' # corner
             elif option == 3: # boundary
-                if col == 1: text += '*' # exterior wall
-                elif col == 2: text += '.' # interior wall
-                elif col == 3: text += '_' # interior rooms
+                if col == 'External': text += '*' # exterior wall
+                elif col == 'Internal': text += '.' # interior wall
+                elif col == 'Rooms': text += '_' # interior rooms
             else: text += str(col) # test
         text += '\n'
     output(fileName, text)
@@ -166,24 +166,13 @@ def rhinoFormat (info: dict):
     '''
     format info to work with Rhino
     '''
-    rhinoInfo = {}
-    for loc_key, loc_value in info.items():
-        new_loc_key = location[loc_key]
-        new_loc_value = {}
-        for item_key, item_value in loc_value.items():
-            if item_key in ['Walls', 'Doors']:
-                new_item_value = {
-                    orientation[k]: [rhinoCoorFormat(shape) for shape in v] \
-                        for k, v in item_value.items()
-                    }
-            elif item_key == 'Rooms':
-                new_item_value = {
-                    program_desc[k][0]: [rhinoCoorFormat(shape) for shape in v] \
-                        for k, v in item_value.items()}
-            else: new_item_value = item_value
-            new_loc_value[item_key] = new_item_value
-        rhinoInfo[new_loc_key] = new_loc_value
-    return rhinoInfo
+    for loc in info:
+        for name in info[loc]:
+            for category in info[loc][name]:
+                for id in info[loc][name][category]:
+                    temp = info[loc][name][category][id]
+                    temp['Coordinates'] = rhinoCoorFormat(temp['Coordinates'])
+    return info
 
 def printJSON (fileName: str, data: dict, option: str = None) -> None:
     """

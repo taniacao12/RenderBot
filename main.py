@@ -7,23 +7,15 @@ def run (name, imagePath) -> None:
     imagePath = directory + '/' + imagePath
     print("Reading {}".format(imagePath))
     height, width, program = readImage(imagePath)
-
     orientations, boundary = getPlans(height, width, program)
     info = getInfo(height, width, program, orientations, boundary)
-    # for location in info:
-    #     print(location)
-    #     for component in info[location]:
-    #         print(' ', component)
-    #         for orientation in info[location][component]:
-    #             print('   ', orientation)
-    #             for shape in info[location][component][orientation]:
-    #                 print('     ', shape)
 
     print("Printing output files [{}]...".format(name))
     # printImage(name, height, width, program)
-    # printPlan(1, "program.txt", program)
-    # printPlan(2, "orientations.txt", orientations)
-    # printPlan(3, "boundary.txt", boundary)
+    printPlan(1, "program.txt", program)
+    printPlan(2, "orientations.txt", orientations)
+    printPlan(3, "boundary.txt", boundary)
+    # printJSON(name, info)
     printJSON(name, info, 'Rhino')
         
 if __name__ == '__main__':

@@ -54,7 +54,7 @@ program_code = {
     10:  9, # entrance
     9:  10, # balcony
     # common spaces (additional)
-    6:  11, # study room
+    6:  11, # office
     11: 12, # storage
     12: 13, # walk-in storage
     # bedrooms
@@ -79,7 +79,7 @@ color_code = {
     9:  [116, 202, 187], # entrance
     10: [123, 180, 163], # balcony
     # common spaces (additional)
-    11: [ 91, 113,  74], # study room
+    11: [ 91, 113,  74], # office
     12: [137, 151, 124], # storage
     13: [190, 198, 182], # walk-in storage
     # bedrooms
@@ -90,34 +90,22 @@ color_code = {
 }
 
 program_desc = {
-    0:  ["External Area",   "Exterior"],
-    1:  ["Exterior Wall",   "Wall"],
-    3:  ["Interior Wall",   "Wall"],
-    2:  ["Exterior Door",   "Door"],
-    4:  ["Interior Door",   "Door"],
-    5:  ["Bathroom",        "Common Area"],
-    6:  ["Kitchen",         "Common Area"],
-    7:  ["Dining Room",     "Common Area"],
-    8:  ["Living Room",     "Common Area"],
-    9:  ["Entrance",        "Common Area"],
-    10: ["Balcony",         "Common Area"],
-    11: ["Study Room",      "Office"],
-    12: ["Storage",         "Storage"],    
-    13: ["Walk-In Storage", "Storage"],
-    14: ["Master Room",     "Bedroom"],
-    15: ["Child Room",      "Bedroom"],
-    16: ["Second Room",     "Bedroom"],
-    17: ["Guest Room",      "Bedroom"],
-}
-
-location = {
-    1: 'External',
-    2: 'Internal',
-    3: 'Relation'
-}
-
-orientation = {
-    1: 'Horizontal',
-    2: 'Vertical',
-    3: 'Corner'
+    0:  ["EA", "External Area",   "Exterior"],
+    1:  ["EW", "Exterior Wall",   "Wall"],
+    3:  ["IW", "Interior Wall",   "Wall"],
+    2:  ["ED", "Exterior Door",   "Door"],
+    4:  ["ID", "Interior Door",   "Door"],
+    5:  ["BR", "Bathroom",        "Common Area"],
+    6:  ["KT", "Kitchen",         "Common Area"],
+    7:  ["DR", "Dining Room",     "Common Area"],
+    8:  ["LR", "Living Room",     "Common Area"],
+    9:  ["EN", "Entrance",        "Common Area"],
+    10: ["BL", "Balcony",         "Common Area"],
+    11: ["OF", "Office",          "Office"],
+    12: ["ST", "Storage",         "Storage"],    
+    13: ["WI", "Walk-In Storage", "Storage"],
+    14: ["MR", "Master Room",     "Bedroom"],
+    15: ["CR", "Child Room",      "Bedroom"],
+    16: ["SR", "Second Room",     "Bedroom"],
+    17: ["GR", "Guest Room",      "Bedroom"],
 }
