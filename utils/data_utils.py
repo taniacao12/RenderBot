@@ -172,7 +172,7 @@ def getSnakeNext (grid: np.array, row: int, col: int, dir: str, options: list, t
             elif S not in temp: temp.append(S)
         return retR, retC, retD, temp
 
-def getShape (grid: np.array, plan: np.array, info: dict, loc: str, name: str, row: int, col: int):
+def getShape (grid: np.array, plan: np.array, info: dict, loc: str, featureType: str, row: int, col: int):
     '''
     get coordinates of corners in shape that starts with the given coordinate
     '''
@@ -187,25 +187,29 @@ def getShape (grid: np.array, plan: np.array, info: dict, loc: str, name: str, r
     if [row, col] == coors[0]: coors.append([row, col])
 
     # add shape to components
-    if loc not in info: info[loc] = {name: {}}
-    if name not in info[loc]: info[loc][name] = {}
-    if name == 'Rooms':
+    if featureType not in info: info[featureType] = {}
+    count = len(info[featureType]) + 1
+    if featureType == 'Rooms':
         programID = program_desc[int(category)][0]
         program = program_desc[int(category)][1]
-        if program not in info[loc][name]:
-            id = '{}{}{}01'.format(loc[0], name[0], programID)
-            info[loc][name][program] = {id: {'Coordinates': coors}}
-        else:
-            count = len(info[loc][name][program]) + 1
-            id = '{}{}{}{:02}'.format(loc[0], name[0], programID, count)
-            info[loc][name][program][id] = {'Coordinates': coors}
-    elif category not in info[loc][name]:
-        id = '{}{}{}01'.format(loc[0], name[0], category[0])
-        info[loc][name][category] = {id: {'Coordinates': coors}}
+        id = '{}{:02}-{}'.format(featureType[0], count, programID)
+        info[featureType][id] = {
+            'Program': program,
+            'Coordinates': coors
+        }
     else:
-        count = len(info[loc][name][category]) + 1
-        id = '{}{}{}{:02}'.format(loc[0], name[0], category[0], count)
-        info[loc][name][category][id] = {'Coordinates': coors}
+        if loc == 'External' and featureType == 'Walls': temp = 1
+        elif loc == 'External' and featureType == 'Doors': temp = 2
+        elif loc == 'Internal' and featureType == 'Walls': temp = 3
+        elif loc == 'Internal' and featureType == 'Doors': temp = 4
+        programID = program_desc[temp][0]
+        program = program_desc[temp][1]
+        id = '{}{:02}-{}'.format(featureType[0], count, programID)
+        info[featureType][id] = {
+            'Program': program,
+            'Orientation': category,
+            'Coordinates': coors
+        }
 
     # remove shape from grid and add to plan
     row, col, dir, temp = coors[0][0], coors[0][1], 'E', []
@@ -256,61 +260,53 @@ def getComponents (rows: int, cols: int, p1: np.array, p2: np.array, p3: np.arra
     plan, info = getComponent(plan, info, 'Rooms', rows, cols, rooms, p3)
     return plan, info
 
-def addRoomRelations (info: dict, roomID: str, nameID: str, dir: str):
+def addRoomRelations (info: dict, roomID: str, featureID: str, dir: str):
     '''
     find and add room relations to info
     '''
     # find room
-    for loc in info:
-        if loc[0] == roomID[0]:
-            for name in info[loc]:
-                if name[0] == roomID[1]:
-                    for category in info[loc][name]:
-                        if category[0] == roomID[2]:
-                            for id in info[loc][name][category]:
-                                if id == roomID:
-                                    room = info[loc][name][category][id]
-                                    break
+    for id in info['Rooms']:
+        if id == roomID:
+            room = info['Rooms'][id]
+            break
     # add compenent to room relations
-    if nameID[1] == 'D': relationName = 'Door Relations'
-    elif nameID[1] == 'W': relationName = 'Wall Relations'
+    if featureID[0] == 'W': relationName = 'Wall Relations'
+    elif featureID[0] == 'D': relationName = 'Door Relations'
     if relationName not in room: room[relationName] = {dir: []}
     if dir not in room[relationName]: room[relationName][dir] = []
-    room[relationName][dir].append(nameID)
+    room[relationName][dir].append(featureID)
     return info
 
 def getRelations (info: dict, rows: int, cols: int, plan: np.array):
     '''
     add information on connections between components
     '''
-    for loc in info:
-        for name in ['Walls', 'Doors']:
-            for category in info[loc][name]:
-                if category != 'Corner':
-                    for nameID in info[loc][name][category]:
-                        shape = info[loc][name][category][nameID]
-                        coors = shape['Coordinates']
-                        shape['Room Relations'] = {}
-                        if category == 'Horizontal':
-                            mid = int((coors[1][1] + coors[0][1]) // 2)
-                            if coors[0][0] > 1 and plan[coors[0][0] - 1][mid]:
-                                roomID = plan[coors[0][0] - 1][mid]
-                                shape['Room Relations']['N'] = roomID
-                                info = addRoomRelations(info, roomID, nameID, 'S')
-                            if coors[2][0] < rows - 1 and plan[coors[2][0] + 1][mid]:
-                                roomID = plan[coors[2][0] + 1][mid]
-                                shape['Room Relations']['S'] = roomID
-                                info = addRoomRelations(info, roomID, nameID, 'N')
-                        elif category == 'Vertical':
-                            mid = int((coors[2][0] + coors[1][0]) // 2)
-                            if coors[0][1] > 1 and plan[mid][coors[0][1] - 1]:
-                                roomID = plan[mid][coors[0][1] - 1]
-                                shape['Room Relations']['W'] = roomID
-                                info = addRoomRelations(info, roomID, nameID, 'E')
-                            if coors[1][1] < cols - 1 and plan[mid][coors[1][1] + 1]:
-                                roomID = plan[mid][coors[1][1] + 1]
-                                shape['Room Relations']['E'] = roomID
-                                info = addRoomRelations(info, roomID, nameID, 'W')
+    for featureType in ['Walls', 'Doors']:
+        for featureID in info[featureType]:
+            if info[featureType][featureID]['Orientation'] != 'Corner':
+                feature = info[featureType][featureID]
+                coors = feature['Coordinates']
+                feature['Room Relations'] = {}
+                if info[featureType][featureID]['Orientation'] == 'Horizontal':
+                    mid = int((coors[1][1] + coors[0][1]) // 2)
+                    if coors[0][0] > 1 and plan[coors[0][0] - 1][mid]:
+                        roomID = plan[coors[0][0] - 1][mid]
+                        feature['Room Relations']['N'] = roomID
+                        info = addRoomRelations(info, roomID, featureID, 'S')
+                    if coors[2][0] < rows - 1 and plan[coors[2][0] + 1][mid]:
+                        roomID = plan[coors[2][0] + 1][mid]
+                        feature['Room Relations']['S'] = roomID
+                        info = addRoomRelations(info, roomID, featureID, 'N')
+                elif info[featureType][featureID]['Orientation'] == 'Vertical':
+                    mid = int((coors[2][0] + coors[1][0]) // 2)
+                    if coors[0][1] > 1 and plan[mid][coors[0][1] - 1]:
+                        roomID = plan[mid][coors[0][1] - 1]
+                        feature['Room Relations']['W'] = roomID
+                        info = addRoomRelations(info, roomID, featureID, 'E')
+                    if coors[1][1] < cols - 1 and plan[mid][coors[1][1] + 1]:
+                        roomID = plan[mid][coors[1][1] + 1]
+                        feature['Room Relations']['E'] = roomID
+                        info = addRoomRelations(info, roomID, featureID, 'W')
     return info
 
 def getInfo (rows: int, cols: int, p1: np.array, p2: np.array, p3: np.array):

@@ -166,12 +166,10 @@ def rhinoFormat (info: dict):
     '''
     format info to work with Rhino
     '''
-    for loc in info:
-        for name in info[loc]:
-            for category in info[loc][name]:
-                for id in info[loc][name][category]:
-                    temp = info[loc][name][category][id]
-                    temp['Coordinates'] = rhinoCoorFormat(temp['Coordinates'])
+    for featureType in info:
+        for id in info[featureType]:
+            temp = info[featureType][id]
+            temp['Coordinates'] = rhinoCoorFormat(temp['Coordinates'])
     return info
 
 def printJSON (fileName: str, data: dict, option: str = None, imagePath: str = None) -> None:
