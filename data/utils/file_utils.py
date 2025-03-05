@@ -10,7 +10,7 @@ import numpy as np
 import imageio.v2 as imageio
 from skimage import measure
 
-from legend import color_code, program_code, program_desc, scaleFactor
+from legend import color_code, program_code, scaleFactor
 
 def natural_sort_key(s):
     """
@@ -31,6 +31,13 @@ def readImage (imagePath: str):
     height, width = c1.shape
     return height, width, c1
 
+def readJSON (filePath: str):
+    """
+    open and read JSON file
+    """
+    with open(filePath, 'r') as file:
+        return json.load(file)
+
 def printImage (fileName: str, height: int, width: int, program: np.array):
     """
     format array into image array format and write into a png file with the given file name
@@ -40,13 +47,13 @@ def printImage (fileName: str, height: int, width: int, program: np.array):
         for x in range(width):
             rgb = color_code[program[y, x]]
             coloredImage[y, x] = [rgb[0], rgb[1], rgb[2]]
-    imageio.imwrite('data/dataset/{}.png'.format(fileName), coloredImage)
+    imageio.imwrite('dataset/{}.png'.format(fileName), coloredImage)
 
 def output(fileName: str, text: str) -> None:
     """
     create file with given file name and write given text into it
     """
-    with open('output/' + fileName, 'w') as file:
+    with open(fileName, 'w') as file:
         file.write(text)
 
 def printPlan (option: int, fileName: str, array: np.array) -> None:
@@ -172,14 +179,14 @@ def rhinoFormat (info: dict):
             temp['Coordinates'] = rhinoCoorFormat(temp['Coordinates'])
     return info
 
-def printJSON (fileName: str, data: dict, option: str = None, imagePath: str = None) -> None:
+def printJSON (fileName: str, data: dict, option: str = None, imagePath: str = None, length = 0, width = 0) -> None:
     """
     export data as JSON file with the given file name
     """
-    with open('output/JSON/{}.json'.format(fileName), 'w') as file:
+    with open('{}.json'.format(fileName), 'w') as file:
         if option == 'Rhino':
             data = {
-                'Image Path': imagePath,
+                'Image Path': 'data/' + imagePath,
                 'Features': rhinoFormat(data)
             }
         json.dump(data, file, indent = 4)

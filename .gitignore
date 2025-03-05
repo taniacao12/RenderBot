@@ -1,6 +1,9 @@
 *txt
 *gh
 *pyc
-data/
-output/
-temp.py
+*pdf
+*json
+dataset/
+JSON/
+references/
+zoning/
