@@ -3,6 +3,9 @@
 *pyc
 *pdf
 *json
+*rvt
+*3dm
+*3dmbak
 dataset/
 JSON/
 references/

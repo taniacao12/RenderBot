@@ -1,5 +1,4 @@
-# scaleFactor = 1 / 4 # 4 pixels is equivalent to 1 foot
-scaleFactor = 3 # 1 pixel is equivalent to 3 inches
+scaleFactor = 0.25 # 1 pixel is equivalent to 1/4 foot (3 inches)
 
 nbr = {
     'N': (-1,  0),

@@ -1,7 +1,7 @@
 """
 Functions for the following:
- - read image files
- - text sorting methods
+ - sorting files
+ - reading files
  - creating and writing files
 """
 
@@ -48,6 +48,7 @@ def printImage (fileName: str, height: int, width: int, program: np.array):
             rgb = color_code[program[y, x]]
             coloredImage[y, x] = [rgb[0], rgb[1], rgb[2]]
     imageio.imwrite('dataset/{}.png'.format(fileName), coloredImage)
+    return 'dataset/{}.png'.format(fileName)
 
 def output(fileName: str, text: str) -> None:
     """

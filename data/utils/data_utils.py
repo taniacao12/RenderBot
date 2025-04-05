@@ -1,3 +1,7 @@
+"""
+Functions to extract sematic information from RPLAN images
+"""
+
 import numpy as np
 
 from legend import nbr, program_desc
@@ -188,7 +192,7 @@ def getCoors (plan: np.array, grid: np.array, row: int, col: int, id: str):
     row, col, dir, storage = coors[0][0], coors[0][1], 'E', []
     while grid[row][col] == value:
         grid[row][col] = ''
-        plan[row][col] = id
+        if id[0] != 'D': plan[row][col] = id
         # if row > 87 and col > 37:
         #     printPlan(4, "test.txt", grid)
         #     time.sleep(.2)
@@ -274,7 +278,7 @@ def getNbrs (coors: list, plan: np.array, rows: int, cols: int, orientation: str
     else: left = plan[midV][left - 1]
     if right == cols - 1: right = ''
     else: right = plan[midV][right + 1]
-    return up, down, left, right
+    return plan[midV][midH], up, down, left, right
 
 def addRoomRelations (info: dict, roomID: str, featureID: str, dir: str):
     '''
@@ -285,7 +289,7 @@ def addRoomRelations (info: dict, roomID: str, featureID: str, dir: str):
         if id == roomID:
             room = info['Rooms'][id]
             break
-    # add compenent to room relations
+    # add component to room relations
     if featureID[0] == 'W': relationName = 'Wall Relations'
     elif featureID[0] == 'D': relationName = 'Door Relations'
     if relationName not in room: room[relationName] = {dir: []}
@@ -300,47 +304,68 @@ def getRelations (plan: np.array, info: dict, rows: int, cols: int):
     for featureType in ['Walls', 'Doors']:
         for featureID in info[featureType]:
             orientation = info[featureType][featureID]['Orientation']
-            if orientation != 'Corner':
-                feature = info[featureType][featureID]
-                coors = feature['Coordinates']
-                feature['Room Relations'] = {}
-                up, down, left, right = getNbrs(coors, plan, rows, cols, orientation)
-                if orientation == 'Horizontal':
-                    if left and left[0] == 'R' and right and right[0] == 'R':
-                        if left != right: raise ValueError("error in line 291")
-                        feature['Room Relations']['I'] = left
-                        info = addRoomRelations(info, left, featureID, 'O')
-                    elif left and left[0] == 'R':
-                        feature['Room Relations']['W'] = left
-                        info = addRoomRelations(info, left, featureID, 'E')
-                    elif right and right[0] == 'R':
-                        feature['Room Relations']['E'] = right
-                        info = addRoomRelations(info, right, featureID, 'W')
-                    else:
-                        if up:
-                            feature['Room Relations']['N'] = up
-                            info = addRoomRelations(info, up, featureID, 'S')
-                        if down:
-                            feature['Room Relations']['S'] = down
-                            info = addRoomRelations(info, down, featureID, 'N')
-                elif orientation == 'Vertical':
-                    if up and up[0] == 'R' and down and down[0] == 'R':
-                        if up != down: raise ValueError("error in line 330")
-                        feature['Room Relations']['I'] = up
-                        info = addRoomRelations(info, up, featureID, 'O')
-                    elif up and up[0] == 'R':
+            feature = info[featureType][featureID]
+            coors = feature['Coordinates']
+            feature['Wall Relations'] = {}
+            if orientation != 'Corner': feature['Room Relations'] = {}
+            center, up, down, left, right = getNbrs(coors, plan, rows, cols, orientation)
+            if orientation == 'Horizontal':
+                if left and left[0] == 'R' and right and right[0] == 'R':
+                    if left != right: raise ValueError('stand-alone separation wall/door found')
+                    feature['Room Relations']['I'] = left
+                    info = addRoomRelations(info, left, featureID, 'O')
+                elif left and left[0] == 'R':
+                    if featureID[0] == 'D': raise ValueError('stand-alone door found')
+                    feature['Room Relations']['W'] = left
+                    feature['Wall Relations']['E'] = right
+                    info = addRoomRelations(info, left, featureID, 'E')
+                elif right and right[0] == 'R':
+                    if featureID[0] == 'D': raise ValueError('stand-alone door found')
+                    feature['Wall Relations']['W'] = left
+                    feature['Room Relations']['E'] = right
+                    info = addRoomRelations(info, right, featureID, 'W')
+                else:
+                    if featureID[0] == 'W':
+                        feature['Wall Relations']['W'] = left
+                        feature['Wall Relations']['E'] = right
+                    else: feature['Wall Relations']['I'] = center
+                    if up:
                         feature['Room Relations']['N'] = up
                         info = addRoomRelations(info, up, featureID, 'S')
-                    elif down and down[0] == 'R':
+                    if down:
                         feature['Room Relations']['S'] = down
                         info = addRoomRelations(info, down, featureID, 'N')
-                    else:
-                        if left:
-                            feature['Room Relations']['W'] = left
-                            info = addRoomRelations(info, left, featureID, 'E')
-                        if right:
-                            feature['Room Relations']['E'] = right
-                            info = addRoomRelations(info, right, featureID, 'W')
+            elif orientation == 'Vertical':
+                if up and up[0] == 'R' and down and down[0] == 'R':
+                    if up != down: raise ValueError('stand-alone separation wall/door found')
+                    feature['Room Relations']['I'] = up
+                    info = addRoomRelations(info, up, featureID, 'O')
+                elif up and up[0] == 'R':
+                    if featureID[0] == 'D': raise ValueError('stand-alone door found')
+                    feature['Room Relations']['N'] = up
+                    feature['Wall Relations']['S'] = down
+                    info = addRoomRelations(info, up, featureID, 'S')
+                elif down and down[0] == 'R':
+                    if featureID[0] == 'D': raise ValueError('stand-alone door found')
+                    feature['Wall Relations']['N'] = up
+                    feature['Room Relations']['S'] = down
+                    info = addRoomRelations(info, down, featureID, 'N')
+                else:
+                    if featureID[0] == 'W':
+                        feature['Wall Relations']['N'] = up
+                        feature['Wall Relations']['S'] = down
+                    else: feature['Wall Relations']['I'] = center
+                    if left:
+                        feature['Room Relations']['W'] = left
+                        info = addRoomRelations(info, left, featureID, 'E')
+                    if right:
+                        feature['Room Relations']['E'] = right
+                        info = addRoomRelations(info, right, featureID, 'W')
+            elif orientation == 'Corner':
+                if up: feature['Wall Relations']['N'] = up
+                if down: feature['Wall Relations']['S'] = down
+                if left: feature['Wall Relations']['W'] = left
+                if right: feature['Wall Relations']['E'] = right
     return plan, info
 
 def getInfo (rows: int, cols: int, p1: np.array, p2: np.array, p3: np.array):
